@@ -1,0 +1,56 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// 1 find color
+// 2 convert color -> corner freq
+// 3 determine if beacon sees corner freq
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module determine_corner(
+    input clk,
+    input [15:0] freq,
+    input [4:0] color,
+    input done_color_sensor,
+    output reg beacon_ahead,
+    output reg enable_color_sensor = 0
+    );
+    
+    
+     parameter find_color = 0,
+               convert = 1,
+               observe = 2;
+    
+     parameter    red_color = 0,
+                  blue_color = 1,
+                  green_color = 2,
+                  yellow_color = 3,
+                  unknown_color = 4;
+    
+    
+    
+     reg [3:0] state = 0;
+     reg [9:0] beacon_finder_data = 0;
+     
+     reg [3:0] col;
+    
+    always @ (posedge clk)
+    begin
+        enable_color_sensor <= 1;       // turn on color sensor    
+        if(done_color_sensor==1)
+        begin
+            col <= color;
+            case(col)
+                red_color: beacon_ahead = (beacon_finder_data > 50 && beacon_finder_data < 150)?1:0;
+                green_color: beacon_ahead = (beacon_finder_data > 150 && beacon_finder_data < 250)?1:0;
+                blue_color: beacon_ahead = (beacon_finder_data > 150 && beacon_finder_data < 250)?1:0;
+                yellow_color: beacon_ahead = (beacon_finder_data > 150 && beacon_finder_data < 250)?1:0;
+            endcase
+        end
+    end
+    
+    
+    
+    
+endmodule
+
+
