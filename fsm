@@ -1,0 +1,130 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module beacon_finder(
+    input clk,
+    input IR_data,
+    input IPS_data,                   // metal detector
+    input color_sensor_data,
+    input [15:0] freq,
+    input done_freq,
+    input done_find_corner,
+    input done_move,
+    input done_drop,
+    input done_determine_corner,
+    
+    output reg enable_freq = 0,
+    output reg enable_servo = 0,
+    output reg [7:0] pwm_output = 0,
+    output reg magnet = 0
+    
+    );
+
+
+    // parameter for states
+    parameter find_corner = 0,       // stop motor, full sweep of servo, look for corners
+              move_next_spot = 1,    // move to next position; move a little bit forward to find new spot to search corners from
+              move_to_corner = 2,    // move to corner
+              drop_off = 3,          // drop off washer
+              find_washer = 4;       // look for th washer              
+              
+    reg [3:0] state = 0;
+
+   
+    reg [9:0] beacon_finder_data = 0;   // frequency
+
+     
+     
+// frequency counter
+always @ (posedge clk)
+begin
+    enable_freq <= 1;                   // turn on frequency counter
+    
+    if (done_freq == 1)                 // if frequency counter finished calculations
+    beacon_finder_data <= freq*16;      // store freq in reg
+end
+     
+     
+     
+// STATE MACHINE
+always @ (posedge clk)
+
+
+case(state)         
+    
+              
+    find_corner:
+                begin   
+                    pwm_output <= 0;                // stop and look for beacons 
+                    enable_servo <= 1;              // turn on servo
+                   // enable_freq <= 1;               // turn on frequency counter
+                    state <= find_corner;           // keep doing
+                    
+                if (done_find_corner == 1)          // if corner is found
+                    begin   
+                    pwm_output <= 255;              // pwm to motors
+                    enable_servo <= 0;              // stop servo
+                    state <= move_next_spot;        // got to the next state
+                    end
+                
+                end
+               
+               
+                
+    move_next_spot:
+                begin
+                    pwm_output <= 255;              // pwm to motors
+                    state <= move_next_spot;        // keep doing it
+                    
+                if (done_move == 1)                 
+                    begin
+                    state <= move_to_corner;        // next state
+                    end
+                end
+                
+                
+                
+    move_to_corner:
+                begin   
+                    pwm_output <= 255;               // pwm to motors
+                    state <= move_to_corner;         // keep doing it
+                     
+                if (IR_data == 1)                    // if reached corner
+                    begin
+                    pwm_output <= 0;                 // stop
+                    state <= drop_off;               // next state
+                    end
+                    
+                 
+                end
+    
+    
+    
+    drop_off:
+                begin   
+                if (done_drop == 1)                 // if washer is dropped
+                    begin
+                    pwm_output <= 0;                // stop
+                    magnet <= 0;                    // turn off electrmagnet
+                    state <= find_corner;           // next state
+                    end
+                else 
+                    state <= drop_off;              // otherwise, keep doing
+                end
+               
+                
+                
+    find_washer:
+                begin
+                if (IPS_data <= 1 && color_sensor_data == 1)    // if metal detected and the color have been determined
+                    state <= find_corner;                       // then start looking for the corner
+                    
+                else   
+                    state <= find_washer;
+                end             
+              
+ endcase             
+ endmodule
